@@ -3,10 +3,10 @@
 A responsive single-page landing experience with a six-step qualifying survey for business
 funding from $5k to $500k.
 
-A completed survey sends **exactly one lead** to a Make webhook, which appends a row to a
-worksheet. The webhook URL is server-only: it lives in the `MAKE_WEBHOOK_URL`
-environment variable, is read only by `src/app/api/lead/route.ts`, and is never exposed to the
-browser. No secret is committed. There is no CRM, SMS integration, tracking pixel or analytics.
+A completed survey sends **exactly one lead** to a Make webhook, which appends a row to the
+`76 - Goal Finance - Business Funding` tab of CLIENT LEAD LIST - Tracker. The webhook URL is
+built into `src/app/api/lead/route.ts`, is read only on the server and is never exposed to the
+browser; no environment variable is needed. There is no CRM, SMS integration, tracking pixel or analytics.
 
 ## Stack
 
@@ -17,7 +17,7 @@ browser. No secret is committed. There is no CRM, SMS integration, tracking pixe
 | Styling    | Plain CSS with custom properties (`globals.css`)   |
 | Tests      | Vitest + Testing Library (jsdom)                   |
 | Lint       | ESLint 9 with `eslint-config-next`                 |
-| Deployment | Vercel (`MAKE_WEBHOOK_URL` is the only variable)    |
+| Deployment | Vercel, no environment variables required           |
 
 ## Running it
 
@@ -110,7 +110,7 @@ are tested directly.
 ## The lead
 
 The contact step posts to `/api/lead`; the route validates the body again, stamps a UTC timestamp
-and posts one flat JSON object to `MAKE_WEBHOOK_URL`.
+and posts one flat JSON object to the Make webhook.
 
 | Payload field | Notes |
 | ------------- | ----- |
@@ -134,15 +134,15 @@ route remembers delivered ids for ten minutes and shares one webhook call betwee
 so a retry of a lead whose response was lost cannot become a second row.
 
 **Never a false success.** The thank you screen is shown only after the route answers `2xx`.
-A missing `MAKE_WEBHOOK_URL` is a `500`, a webhook that rejects or stays down is a `502`, and both
-leave the visitor on the contact step with their details intact and an inline error. The route
+A webhook that rejects or stays down is a `502`, which leaves the visitor on the contact step
+with their details intact and an inline error ending in a short reference such as
+`(ref: delivery_failed-502)` so a failure can be diagnosed. The route
 retries timeouts, network errors, `429` and `5xx` three times with backoff; a `4xx` from Make is
 not retried.
 
 ## Configuration
 
-`MAKE_WEBHOOK_URL` — the Make webhook the lead is posted to. Set it in the Vercel project's
-environment variables and, for local development, in `.env.local`. See `.env.example`.
+None required. `MAKE_WEBHOOK_URL` is optional and, if set, overrides the built-in webhook.
 
 ## Tests
 

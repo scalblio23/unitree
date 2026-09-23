@@ -274,19 +274,18 @@ describe("POST /api/lead", () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    it("fails loudly when the webhook URL is not configured", async () => {
+    it("uses the built-in webhook when no override is configured", async () => {
       vi.resetModules();
       vi.stubEnv("MAKE_WEBHOOK_URL", "");
       ({ POST } = await import("./route"));
 
       const response = await POST(request(VALID));
 
-      expect(response.status).toBe(500);
-      await expect(response.json()).resolves.toMatchObject({
-        ok: false,
-        error: "not_configured",
-      });
-      expect(fetchMock).not.toHaveBeenCalled();
+      expect(response.status).toBe(200);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock.mock.calls[0][0]).toBe(
+        "https://hook.eu1.make.com/8z59ph5q2wbwfopyqs1hbcicsqukd8u1",
+      );
     });
   });
 });

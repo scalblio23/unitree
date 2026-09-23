@@ -564,9 +564,10 @@ describe("Questionnaire", () => {
 
       await user.click(submitButton());
 
-      expect(await screen.findByRole("alert")).toHaveTextContent(
-        "Sorry, we couldn't send your details. Please try again.",
-      );
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent("Sorry, we couldn't send your details. Please try again.");
+      // The server's reason is shown so a failed submission can be diagnosed.
+      expect(alert).toHaveTextContent("(ref: delivery_failed-502)");
       expect(screen.queryByRole("heading", { name: /Thank you/ })).not.toBeInTheDocument();
       expect(
         screen.getByRole("heading", {
@@ -585,6 +586,7 @@ describe("Questionnaire", () => {
 
       await user.click(submitButton());
 
+      expect(await screen.findByRole("alert")).toHaveTextContent("(ref: network)");
       expect(await screen.findByRole("alert")).toBeInTheDocument();
       expect(screen.queryByRole("heading", { name: /Thank you/ })).not.toBeInTheDocument();
     });

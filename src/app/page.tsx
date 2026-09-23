@@ -4,7 +4,7 @@ export default function Page() {
   return (
     <main className="page">
       <header className="brand-bar">
-        <span className="brand-name">Goal Finance</span>
+        <span className="brand-name">Unitree Finance</span>
       </header>
 
       <div className="column">

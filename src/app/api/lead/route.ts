@@ -7,6 +7,13 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * The Make webhook for the "76 - Goal Finance - Business Funding" tab. Only ever
+ * read here on the server, never sent to the browser. MAKE_WEBHOOK_URL, if set,
+ * overrides it.
+ */
+const WEBHOOK_URL = "https://hook.eu1.make.com/8z59ph5q2wbwfopyqs1hbcicsqukd8u1";
+
 /** How long a single delivery attempt may take before it is abandoned. */
 const ATTEMPT_TIMEOUT_MS = 8_000;
 
@@ -93,13 +100,7 @@ export async function POST(request: Request) {
     return json({ ok: false, error: "invalid_submission", errors: validated.errors }, 400);
   }
 
-  const webhookUrl = process.env.MAKE_WEBHOOK_URL;
-  if (!webhookUrl) {
-    // Never reported as a success: an unconfigured deploy must not silently
-    // drop leads while the visitor is shown the thank you screen.
-    console.error("[lead] MAKE_WEBHOOK_URL is not set; lead was not delivered");
-    return json({ ok: false, error: "not_configured" }, 500);
-  }
+  const webhookUrl = process.env.MAKE_WEBHOOK_URL?.trim() || WEBHOOK_URL;
 
   const { submissionId } = validated.value;
   const now = Date.now();

@@ -89,6 +89,8 @@ export function ContactStep({ answers, onComplete, questionId }: ContactStepProp
     setSubmitting(true);
 
     let succeeded = false;
+    // A short reason shown with the error, so a failed submission can be diagnosed.
+    let reason = "network";
     try {
       const response = await fetch(LEAD_ENDPOINT, {
         method: "POST",
@@ -96,6 +98,13 @@ export function ContactStep({ answers, onComplete, questionId }: ContactStepProp
         body: JSON.stringify(lead),
       });
       succeeded = response.ok;
+      if (!succeeded) {
+        const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
+        reason =
+          typeof body?.error === "string"
+            ? `${body.error}-${response.status}`
+            : `http-${response.status}`;
+      }
     } catch {
       succeeded = false;
     }
@@ -106,7 +115,7 @@ export function ContactStep({ answers, onComplete, questionId }: ContactStepProp
       // The visitor stays on the step and can retry. Never show the success
       // screen for a lead that was not delivered.
       setSubmitting(false);
-      setSubmitError(SUBMIT_ERROR);
+      setSubmitError(`${SUBMIT_ERROR} (ref: ${reason})`);
       return;
     }
 
