@@ -505,6 +505,64 @@ describe("Questionnaire", () => {
     });
   });
 
+  describe("meta pixel", () => {
+    it("reports one Lead, keyed by the submission id, once the lead is delivered", async () => {
+      const fetchMock = stubLeadEndpoint();
+      const fbq = vi.fn();
+      vi.stubGlobal("fbq", fbq);
+      const user = userEvent.setup();
+      render(<Questionnaire />);
+      await walkToContact(user);
+      await fillContact(user);
+      await user.click(submitButton());
+      await heading(/Thank you Sam/);
+
+      expect(fbq).toHaveBeenCalledTimes(1);
+      expect(fbq).toHaveBeenCalledWith(
+        "track",
+        "Lead",
+        {},
+        { eventID: sentLead(fetchMock).submissionId },
+      );
+    });
+
+    it("does not report a Lead when delivery fails", async () => {
+      stubLeadEndpoint(rejected());
+      const fbq = vi.fn();
+      vi.stubGlobal("fbq", fbq);
+      const user = userEvent.setup();
+      render(<Questionnaire />);
+      await walkToContact(user);
+      await fillContact(user);
+      await user.click(submitButton());
+      await screen.findByRole("alert");
+
+      expect(fbq).not.toHaveBeenCalled();
+    });
+
+    it("does not report a Lead for a disqualified visitor", async () => {
+      const fbq = vi.fn();
+      vi.stubGlobal("fbq", fbq);
+      const user = userEvent.setup();
+      render(<Questionnaire />);
+      dragTo(50_000);
+      await user.click(await screen.findByRole("button", { name: "No" }));
+      await screen.findByText(/Sorry, it doesn't look like we're able to help/);
+
+      expect(fbq).not.toHaveBeenCalled();
+    });
+
+    it("still completes when the pixel is blocked", async () => {
+      stubLeadEndpoint();
+      const user = userEvent.setup();
+      render(<Questionnaire />);
+      await walkToContact(user);
+      await fillContact(user);
+      await user.click(submitButton());
+      expect(await heading(/Thank you Sam/)).toBeInTheDocument();
+    });
+  });
+
   describe("duplicate submit protection", () => {
     it("ignores a second click while the lead is in flight", async () => {
       let release: (value: Response) => void = () => {};

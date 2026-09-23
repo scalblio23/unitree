@@ -16,6 +16,7 @@ import {
   createSubmissionId,
   type LeadRequest,
 } from "@/lib/lead/submission";
+import { trackLead } from "@/lib/pixel";
 
 type ContactStepProps = {
   /** The answers from the earlier steps, sent with the lead. */
@@ -118,6 +119,8 @@ export function ContactStep({ answers, onComplete, questionId }: ContactStepProp
       setSubmitError(`${SUBMIT_ERROR} (ref: ${reason})`);
       return;
     }
+
+    trackLead(lead.submissionId);
 
     setSubmitting(false);
     setName("");

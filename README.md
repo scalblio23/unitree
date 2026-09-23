@@ -6,7 +6,9 @@ funding from $5k to $500k.
 A completed survey sends **exactly one lead** to a Make webhook, which appends a row to the
 `76 - Goal Finance - Business Funding` tab of CLIENT LEAD LIST - Tracker. The webhook URL is
 built into `src/app/api/lead/route.ts`, is read only on the server and is never exposed to the
-browser; no environment variable is needed. There is no CRM, SMS integration, tracking pixel or analytics.
+browser; no environment variable is needed. The Meta pixel (`511196348754102`, in `src/lib/pixel.ts`) reports a PageView
+on load and one Lead, keyed by the submission id, only after a lead is delivered — never for
+disqualified visitors or failed submissions. There is no CRM, SMS integration or other analytics.
 
 ## Stack
 
