@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useId, useReducer, useRef } from "react";
+import { AmountStep } from "./steps/AmountStep";
 import { ChoiceStep } from "./steps/ChoiceStep";
 import { ContactStep } from "./steps/ContactStep";
+import { IndustryStep } from "./steps/IndustryStep";
 import { DisqualifiedScreen, QualifiedScreen } from "./steps/OutcomeScreens";
 import {
   canGoBack,
@@ -13,9 +15,9 @@ import {
   stepNumber,
 } from "@/lib/funnel/machine";
 import {
-  FIRST_HOME_OPTIONS,
-  INCOME_OPTIONS,
-  SITUATION_OPTIONS,
+  CREDIT_SCORE_OPTIONS,
+  IN_BUSINESS_OPTIONS,
+  PURPOSE_OPTIONS,
   TOTAL_STEPS,
 } from "@/lib/funnel/steps";
 
@@ -82,7 +84,7 @@ export function Questionnaire() {
   const showBack = !isTerminal && canGoBack(state);
 
   return (
-    <div className={`card${screen === "qualified" ? " card--wide" : ""}`}>
+    <div className="card">
       <div className="card-top">
         {showBack ? (
           <button type="button" className="back" onClick={goBack}>
@@ -107,33 +109,49 @@ export function Questionnaire() {
       </p>
 
       <div className="step" key={screen}>
-        {screen === "firstHome" ? (
-          <ChoiceStep
+        {screen === "amount" ? (
+          <AmountStep
             questionId={headingId}
-            question="Are you looking to buy your first home?"
-            options={FIRST_HOME_OPTIONS}
-            selected={state.answers.firstHome}
-            onSelect={(value) => dispatch({ type: "select", id: "firstHome", value })}
+            selected={state.answers.amount}
+            onSubmit={(value) => dispatch({ type: "answer", id: "amount", value })}
           />
         ) : null}
 
-        {screen === "situation" ? (
+        {screen === "inBusiness" ? (
           <ChoiceStep
             questionId={headingId}
-            question="Describe your situation"
-            options={SITUATION_OPTIONS}
-            selected={state.answers.situation}
-            onSelect={(value) => dispatch({ type: "select", id: "situation", value })}
+            question="Do you run a business?"
+            options={IN_BUSINESS_OPTIONS}
+            selected={state.answers.inBusiness}
+            onSelect={(value) => dispatch({ type: "answer", id: "inBusiness", value })}
           />
         ) : null}
 
-        {screen === "income" ? (
+        {screen === "industry" ? (
+          <IndustryStep
+            questionId={headingId}
+            selected={state.answers.industry}
+            onSubmit={(value) => dispatch({ type: "answer", id: "industry", value })}
+          />
+        ) : null}
+
+        {screen === "purpose" ? (
           <ChoiceStep
             questionId={headingId}
-            question="What is your combined household income? (both partners)"
-            options={INCOME_OPTIONS}
-            selected={state.answers.income}
-            onSelect={(value) => dispatch({ type: "select", id: "income", value })}
+            question="What is the purpose of the loan?"
+            options={PURPOSE_OPTIONS}
+            selected={state.answers.purpose}
+            onSelect={(value) => dispatch({ type: "answer", id: "purpose", value })}
+          />
+        ) : null}
+
+        {screen === "creditScore" ? (
+          <ChoiceStep
+            questionId={headingId}
+            question="How would you rate your credit score?"
+            options={CREDIT_SCORE_OPTIONS}
+            selected={state.answers.creditScore}
+            onSelect={(value) => dispatch({ type: "answer", id: "creditScore", value })}
           />
         ) : null}
 

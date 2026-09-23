@@ -11,7 +11,7 @@ type ChoiceStepProps = {
 };
 
 /**
- * Single-select steps (employment, income, mortgage, mortgage size). Choosing
+ * Single-select steps (business, loan purpose, credit score). Choosing
  * an option advances straight away, so there is no Continue button.
  */
 export function ChoiceStep({

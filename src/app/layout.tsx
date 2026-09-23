@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Need business funding? Get access from $5k - $500k from unique lenders.",
   description:
-    "Answer a short survey to see what you could qualify for as a first home buyer in Victoria.",
+    "Answer a short quiz to see what business funding you could qualify for, from $5k to $500k.",
   robots: { index: false, follow: false },
 };
 

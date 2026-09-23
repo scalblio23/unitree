@@ -17,9 +17,7 @@ export default function Page() {
 
         <p className="terms">T+C&apos;s Apply</p>
 
-        <p className="cta">
-          Complete the short quiz now to qualify.
-        </p>
+        <p className="cta">Complete the short quiz now to qualify.</p>
 
         <Questionnaire />
 

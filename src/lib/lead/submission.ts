@@ -1,16 +1,20 @@
 import {
-  FIRST_HOME_OPTIONS,
-  INCOME_OPTIONS,
-  SITUATION_OPTIONS,
+  CREDIT_SCORE_OPTIONS,
+  IN_BUSINESS_OPTIONS,
+  MAX_INDUSTRY_LENGTH,
+  PURPOSE_OPTIONS,
+  formatAmount,
+  isValidAmount,
   type Option,
 } from "@/lib/funnel/steps";
 import {
   EMAIL_ERROR,
-  MOBILE_ERROR,
+  INDUSTRY_ERROR,
   NAME_ERROR,
-  isValidAustralianMobile,
+  PHONE_ERROR,
+  isValidAustralianPhone,
   isValidEmail,
-  normaliseMobile,
+  normalisePhone,
 } from "@/lib/funnel/validation";
 
 /** Shown on the contact step when the lead could not be delivered. */
@@ -25,19 +29,23 @@ export type LeadRequest = {
   submissionId: string;
   name: string;
   email: string;
-  mobile: string;
+  phone: string;
+  /** Whole dollars, from the slider. */
+  amount: number;
   /** Option values, as stored by the funnel reducer. */
-  firstHome: string;
-  situation: string;
-  income: string;
+  inBusiness: string;
+  /** Free text. */
+  industry: string;
+  purpose: string;
+  creditScore: string;
   pageUrl: string;
 };
 
 /**
  * What the server posts to the Make webhook: one flat object per lead, one row
- * per object, with the human-readable answer labels rather than option slugs.
- * `status` and `notes` are deliberately blank — the sheet's STATUS and
- * S.IO NOTES columns are filled in by hand after the fact.
+ * per object, with human-readable answers rather than option slugs.
+ * `status` and `notes` are deliberately blank — they are filled in by hand
+ * after the fact.
  */
 export type LeadPayload = {
   submissionId: string;
@@ -45,10 +53,13 @@ export type LeadPayload = {
   submittedAt: string;
   name: string;
   email: string;
-  mobile: string;
-  firstHome: string;
-  situation: string;
-  income: string;
+  phone: string;
+  /** Formatted, e.g. "$50,000". */
+  amount: string;
+  inBusiness: string;
+  industry: string;
+  purpose: string;
+  creditScore: string;
   pageUrl: string;
   status: "";
   notes: "";
@@ -96,9 +107,9 @@ function isHttpUrl(value: string): boolean {
 }
 
 /**
- * Validates an untrusted request body. The browser runs the same name, email
- * and mobile rules before posting, but the route never trusts that — the
- * endpoint is public, so everything is re-checked here.
+ * Validates an untrusted request body. The browser runs the same rules before
+ * posting, but the route never trusts that — the endpoint is public, so
+ * everything is re-checked here.
  */
 export function validateLeadRequest(body: unknown): ValidationResult {
   if (typeof body !== "object" || body === null) {
@@ -114,23 +125,30 @@ export function validateLeadRequest(body: unknown): ValidationResult {
   }
 
   const name = asString(input.name);
-  if (!name) errors.name = NAME_ERROR;
-  else if (name.length > MAX_NAME) errors.name = NAME_ERROR;
+  if (!name || name.length > MAX_NAME) errors.name = NAME_ERROR;
 
   const email = asString(input.email);
   if (!isValidEmail(email) || email.length > MAX_EMAIL) errors.email = EMAIL_ERROR;
 
-  const mobile = asString(input.mobile);
-  if (!isValidAustralianMobile(mobile)) errors.mobile = MOBILE_ERROR;
+  const phone = asString(input.phone);
+  if (!isValidAustralianPhone(phone)) errors.phone = PHONE_ERROR;
 
-  const firstHome = labelFor(FIRST_HOME_OPTIONS, input.firstHome);
-  if (firstHome === null) errors.firstHome = "Unknown first home answer.";
+  if (!isValidAmount(input.amount)) errors.amount = "Invalid borrowing amount.";
 
-  const situation = labelFor(SITUATION_OPTIONS, input.situation);
-  if (situation === null) errors.situation = "Unknown situation answer.";
+  if (labelFor(IN_BUSINESS_OPTIONS, input.inBusiness) === null) {
+    errors.inBusiness = "Unknown business answer.";
+  }
 
-  const income = labelFor(INCOME_OPTIONS, input.income);
-  if (income === null) errors.income = "Unknown income answer.";
+  const industry = asString(input.industry);
+  if (!industry || industry.length > MAX_INDUSTRY_LENGTH) errors.industry = INDUSTRY_ERROR;
+
+  if (labelFor(PURPOSE_OPTIONS, input.purpose) === null) {
+    errors.purpose = "Unknown loan purpose.";
+  }
+
+  if (labelFor(CREDIT_SCORE_OPTIONS, input.creditScore) === null) {
+    errors.creditScore = "Unknown credit score answer.";
+  }
 
   const pageUrl = asString(input.pageUrl);
   if (!isHttpUrl(pageUrl) || pageUrl.length > MAX_URL) errors.pageUrl = "Invalid page URL.";
@@ -143,10 +161,12 @@ export function validateLeadRequest(body: unknown): ValidationResult {
       submissionId,
       name,
       email,
-      mobile,
-      firstHome: String(input.firstHome),
-      situation: String(input.situation),
-      income: String(input.income),
+      phone,
+      amount: input.amount as number,
+      inBusiness: String(input.inBusiness),
+      industry,
+      purpose: String(input.purpose),
+      creditScore: String(input.creditScore),
       pageUrl,
     },
   };
@@ -162,10 +182,12 @@ export function buildLeadPayload(request: LeadRequest, now: Date = new Date()): 
     submittedAt: now.toISOString(),
     name: request.name,
     email: request.email.toLowerCase(),
-    mobile: normaliseMobile(request.mobile),
-    firstHome: labelFor(FIRST_HOME_OPTIONS, request.firstHome) ?? request.firstHome,
-    situation: labelFor(SITUATION_OPTIONS, request.situation) ?? request.situation,
-    income: labelFor(INCOME_OPTIONS, request.income) ?? request.income,
+    phone: normalisePhone(request.phone),
+    amount: formatAmount(request.amount),
+    inBusiness: labelFor(IN_BUSINESS_OPTIONS, request.inBusiness) ?? request.inBusiness,
+    industry: request.industry,
+    purpose: labelFor(PURPOSE_OPTIONS, request.purpose) ?? request.purpose,
+    creditScore: labelFor(CREDIT_SCORE_OPTIONS, request.creditScore) ?? request.creditScore,
     pageUrl: request.pageUrl,
     status: "",
     notes: "",

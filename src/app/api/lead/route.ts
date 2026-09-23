@@ -96,7 +96,7 @@ export async function POST(request: Request) {
   const webhookUrl = process.env.MAKE_WEBHOOK_URL;
   if (!webhookUrl) {
     // Never reported as a success: an unconfigured deploy must not silently
-    // drop leads while the visitor is shown the congratulations screen.
+    // drop leads while the visitor is shown the thank you screen.
     console.error("[lead] MAKE_WEBHOOK_URL is not set; lead was not delivered");
     return json({ ok: false, error: "not_configured" }, 500);
   }

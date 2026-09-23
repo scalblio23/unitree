@@ -3,11 +3,13 @@
 import { useId, useRef, useState } from "react";
 import {
   EMAIL_ERROR,
-  MOBILE_ERROR,
   NAME_ERROR,
-  isValidAustralianMobile,
+  PHONE_ERROR,
+  firstNameOf,
+  isValidAustralianPhone,
   isValidEmail,
 } from "@/lib/funnel/validation";
+import type { Answers } from "@/lib/funnel/machine";
 import {
   LEAD_ENDPOINT,
   SUBMIT_ERROR,
@@ -16,14 +18,14 @@ import {
 } from "@/lib/lead/submission";
 
 type ContactStepProps = {
-  /** The answers from steps 1-3, sent with the lead. */
-  answers: { firstHome?: string; situation?: string; income?: string };
-  /** Called only after the lead has been delivered; receives the trimmed first name. */
+  /** The answers from the earlier steps, sent with the lead. */
+  answers: Omit<Answers, "firstName">;
+  /** Called only after the lead has been delivered; receives the first name. */
   onComplete: (firstName: string) => void;
   questionId: string;
 };
 
-type Errors = { name?: string; email?: string; mobile?: string };
+type Errors = { name?: string; email?: string; phone?: string };
 
 /**
  * The contact details are held in this component's state, posted once to the
@@ -34,13 +36,12 @@ export function ContactStep({ answers, onComplete, questionId }: ContactStepProp
   const baseId = useId();
   const nameId = `${baseId}-name`;
   const emailId = `${baseId}-email`;
-  const mobileId = `${baseId}-mobile`;
-  const hintId = `${baseId}-hint`;
+  const phoneId = `${baseId}-phone`;
   const formErrorId = `${baseId}-form-error`;
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [mobile, setMobile] = useState("");
+  const [phone, setPhone] = useState("");
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -58,25 +59,27 @@ export function ContactStep({ answers, onComplete, questionId }: ContactStepProp
     const next: Errors = {};
     if (!name.trim()) next.name = NAME_ERROR;
     if (!isValidEmail(email)) next.email = EMAIL_ERROR;
-    if (!isValidAustralianMobile(mobile)) next.mobile = MOBILE_ERROR;
+    if (!isValidAustralianPhone(phone)) next.phone = PHONE_ERROR;
 
-    if (next.name || next.email || next.mobile) {
+    if (next.name || next.email || next.phone) {
       setErrors(next);
       setSubmitError(null);
       return;
     }
 
-    const firstName = name.trim();
+    const fullName = name.trim();
     if (!submissionId.current) submissionId.current = createSubmissionId();
 
     const lead: LeadRequest = {
       submissionId: submissionId.current,
-      name: firstName,
+      name: fullName,
       email: email.trim(),
-      mobile: mobile.trim(),
-      firstHome: answers.firstHome ?? "",
-      situation: answers.situation ?? "",
-      income: answers.income ?? "",
+      phone: phone.trim(),
+      amount: answers.amount ?? 0,
+      inBusiness: answers.inBusiness ?? "",
+      industry: answers.industry ?? "",
+      purpose: answers.purpose ?? "",
+      creditScore: answers.creditScore ?? "",
       pageUrl: window.location.href,
     };
 
@@ -110,33 +113,30 @@ export function ContactStep({ answers, onComplete, questionId }: ContactStepProp
     setSubmitting(false);
     setName("");
     setEmail("");
-    setMobile("");
-    onComplete(firstName);
+    setPhone("");
+    onComplete(firstNameOf(fullName));
   }
 
   return (
     <form onSubmit={handleSubmit} noValidate>
       <h2 className="question" id={questionId} tabIndex={-1}>
-        Where should we send your offer?
+        Enter your details to finalise your application
       </h2>
-      <p className="hint" id={hintId}>
-        We&apos;ll use this to match you with the best offer
-      </p>
 
       <label className="visually-hidden" htmlFor={nameId}>
-        Your name
+        Full name
       </label>
       <input
         id={nameId}
         className="field"
         type="text"
         name="name"
-        autoComplete="given-name"
-        placeholder="Your name"
+        autoComplete="name"
+        placeholder="Full name"
         value={name}
         disabled={submitting}
         aria-invalid={errors.name ? true : undefined}
-        aria-describedby={errors.name ? `${nameId}-error` : hintId}
+        aria-describedby={errors.name ? `${nameId}-error` : undefined}
         onChange={(event) => {
           setName(event.target.value);
           if (errors.name) setErrors((current) => ({ ...current, name: undefined }));
@@ -149,7 +149,7 @@ export function ContactStep({ answers, onComplete, questionId }: ContactStepProp
       ) : null}
 
       <label className="visually-hidden" htmlFor={emailId}>
-        Email address
+        Email
       </label>
       <input
         id={emailId}
@@ -158,7 +158,7 @@ export function ContactStep({ answers, onComplete, questionId }: ContactStepProp
         name="email"
         autoComplete="email"
         inputMode="email"
-        placeholder="Email address"
+        placeholder="Email"
         value={email}
         disabled={submitting}
         aria-invalid={errors.email ? true : undefined}
@@ -174,29 +174,29 @@ export function ContactStep({ answers, onComplete, questionId }: ContactStepProp
         </p>
       ) : null}
 
-      <label className="visually-hidden" htmlFor={mobileId}>
-        Mobile number
+      <label className="visually-hidden" htmlFor={phoneId}>
+        Phone
       </label>
       <input
-        id={mobileId}
+        id={phoneId}
         className="field"
         type="tel"
-        name="mobile"
+        name="phone"
         autoComplete="tel"
         inputMode="tel"
-        placeholder="Mobile number"
-        value={mobile}
+        placeholder="Phone"
+        value={phone}
         disabled={submitting}
-        aria-invalid={errors.mobile ? true : undefined}
-        aria-describedby={errors.mobile ? `${mobileId}-error` : undefined}
+        aria-invalid={errors.phone ? true : undefined}
+        aria-describedby={errors.phone ? `${phoneId}-error` : undefined}
         onChange={(event) => {
-          setMobile(event.target.value);
-          if (errors.mobile) setErrors((current) => ({ ...current, mobile: undefined }));
+          setPhone(event.target.value);
+          if (errors.phone) setErrors((current) => ({ ...current, phone: undefined }));
         }}
       />
-      {errors.mobile ? (
-        <p className="error" id={`${mobileId}-error`}>
-          {errors.mobile}
+      {errors.phone ? (
+        <p className="error" id={`${phoneId}-error`}>
+          {errors.phone}
         </p>
       ) : null}
 
@@ -213,7 +213,7 @@ export function ContactStep({ answers, onComplete, questionId }: ContactStepProp
         aria-busy={submitting || undefined}
         aria-describedby={submitError ? formErrorId : undefined}
       >
-        {submitting ? "Sending…" : "See My Offer"}
+        {submitting ? "Sending…" : "Submit"}
       </button>
     </form>
   );

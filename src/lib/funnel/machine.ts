@@ -1,12 +1,17 @@
 import { type Screen, type StepId, progressFor, stepNumber } from "./steps";
 
 export type Answers = {
-  /** Captured on the contact step and used only to personalise the confirmation. */
+  /** Captured on the contact step and used only to personalise the thank you. */
   firstName: string;
-  firstHome?: string;
-  situation?: string;
-  income?: string;
+  amount?: number;
+  inBusiness?: string;
+  industry?: string;
+  purpose?: string;
+  creditScore?: string;
 };
+
+/** The questions answered before the contact step. */
+export type QuestionId = Exclude<StepId, "contact">;
 
 export type FunnelState = {
   /**
@@ -18,12 +23,13 @@ export type FunnelState = {
 };
 
 export type FunnelAction =
-  | { type: "select"; id: StepId; value: string }
+  | { type: "answer"; id: "amount"; value: number }
+  | { type: "answer"; id: Exclude<QuestionId, "amount">; value: string }
   | { type: "complete"; firstName: string }
   | { type: "back" };
 
 export const INITIAL_STATE: FunnelState = {
-  stack: ["firstHome"],
+  stack: ["amount"],
   answers: { firstName: "" },
 };
 
@@ -35,38 +41,35 @@ export function canGoBack(state: FunnelState): boolean {
   return state.stack.length > 1;
 }
 
-/** Where a completed step leads. Answering "no" to the first question ends the flow. */
+/**
+ * Where a completed step leads. Not running a business, or rating their credit
+ * as bad, ends the flow.
+ */
 export function nextScreenAfter(id: StepId, answers: Answers): Screen {
   switch (id) {
-    case "firstHome":
-      return answers.firstHome === "no" ? "disqualified" : "situation";
-    case "situation":
-      return "income";
-    case "income":
-      return "contact";
+    case "amount":
+      return "inBusiness";
+    case "inBusiness":
+      return answers.inBusiness === "no" ? "disqualified" : "industry";
+    case "industry":
+      return "purpose";
+    case "purpose":
+      return "creditScore";
+    case "creditScore":
+      return answers.creditScore === "bad" ? "disqualified" : "contact";
     case "contact":
       return "qualified";
   }
 }
 
-function applyAnswer(answers: Answers, id: StepId, value: string): Answers {
-  switch (id) {
-    case "firstHome":
-      return { ...answers, firstHome: value };
-    case "situation":
-      return { ...answers, situation: value };
-    case "income":
-      return { ...answers, income: value };
-    default:
-      return answers;
-  }
-}
-
 export function funnelReducer(state: FunnelState, action: FunnelAction): FunnelState {
   switch (action.type) {
-    case "select": {
-      const answers = applyAnswer(state.answers, action.id, action.value);
-      return { answers, stack: [...state.stack, nextScreenAfter(action.id, answers)] };
+    case "answer": {
+      const answers = { ...state.answers, [action.id]: action.value };
+      return {
+        answers,
+        stack: [...state.stack, nextScreenAfter(action.id, answers)],
+      };
     }
 
     case "complete":

@@ -1,7 +1,6 @@
 "use client";
 
 import { CheckIcon } from "@/components/CheckIcon";
-import { MockScheduler } from "@/components/MockScheduler";
 
 export function QualifiedScreen({
   firstName,
@@ -18,11 +17,11 @@ export function QualifiedScreen({
         <CheckIcon size={32} strokeWidth={2.5} />
       </div>
       <h2 className="outcome-title" id={headingId} tabIndex={-1}>
-        Congrats{name ? ` ${name}` : ""}, we can help! Book a time below to get started on your
-        first home today!
+        Thank you{name ? ` ${name}` : ""}! Your application has been received.
       </h2>
-      <p className="outcome-hint">No cost. No obligation.</p>
-      <MockScheduler />
+      <p className="outcome-hint">
+        One of our lending specialists will be in touch with you shortly.
+      </p>
     </div>
   );
 }

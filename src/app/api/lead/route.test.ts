@@ -8,10 +8,12 @@ const VALID = {
   submissionId: "sr-11111111-2222-3333-4444-555555555555",
   name: "Sam Tester",
   email: "Sam@Example.com",
-  mobile: "0412 345 678",
-  firstHome: "yes",
-  situation: "full-time",
-  income: "150k-200k",
+  phone: "0412 345 678",
+  amount: 150_000,
+  inBusiness: "yes",
+  industry: "Construction",
+  purpose: "equipment",
+  creditScore: "good",
   pageUrl: "https://stoprent.scalbl.io/",
 };
 
@@ -89,10 +91,12 @@ describe("POST /api/lead", () => {
         submittedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
         name: "Sam Tester",
         email: "sam@example.com",
-        mobile: "0412345678",
-        firstHome: "Yes",
-        situation: "Full time",
-        income: "$150k – $200k",
+        phone: "0412345678",
+        amount: "$150,000",
+        inBusiness: "Yes",
+        industry: "Construction",
+        purpose: "Equipment or vehicle purchase",
+        creditScore: "Good",
         pageUrl: "https://stoprent.scalbl.io/",
         status: "",
         notes: "",
@@ -110,9 +114,14 @@ describe("POST /api/lead", () => {
       expect(webhookPayload().submittedAt.endsWith("Z")).toBe(true);
     });
 
-    it("normalises an international mobile", async () => {
-      await POST(request({ ...VALID, mobile: "+61 412 345 678" }));
-      expect(webhookPayload().mobile).toBe("0412345678");
+    it("normalises an international number", async () => {
+      await POST(request({ ...VALID, phone: "+61 412 345 678" }));
+      expect(webhookPayload().phone).toBe("0412345678");
+    });
+
+    it("accepts a landline", async () => {
+      await POST(request({ ...VALID, phone: "(02) 9876 5432" }));
+      expect(webhookPayload().phone).toBe("0298765432");
     });
   });
 
@@ -129,22 +138,32 @@ describe("POST /api/lead", () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it("rejects a blank name and a landline", async () => {
-      const response = await POST(request({ ...VALID, name: "   ", mobile: "0298765432" }));
+    it("rejects a blank name and a bad phone number", async () => {
+      const response = await POST(request({ ...VALID, name: "   ", phone: "12345" }));
 
       expect(response.status).toBe(400);
       const body = await response.json();
-      expect(body.errors.name).toBe("Please enter your name.");
-      expect(body.errors.mobile).toBe("Please enter a valid Australian mobile number.");
+      expect(body.errors.name).toBe("Please enter your full name.");
+      expect(body.errors.phone).toBe("Please enter a valid Australian phone number.");
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it("rejects survey answers that are not offered options", async () => {
-      const response = await POST(request({ ...VALID, income: "1-billion" }));
+      const response = await POST(request({ ...VALID, purpose: "yacht" }));
 
       expect(response.status).toBe(400);
       await expect(response.json()).resolves.toMatchObject({
-        errors: { income: "Unknown income answer." },
+        errors: { purpose: "Unknown loan purpose." },
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects an amount outside the slider range", async () => {
+      const response = await POST(request({ ...VALID, amount: 1_000_000 }));
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        errors: { amount: "Invalid borrowing amount." },
       });
       expect(fetchMock).not.toHaveBeenCalled();
     });
@@ -169,7 +188,9 @@ describe("POST /api/lead", () => {
       const response = await POST(request(null, "not json"));
 
       expect(response.status).toBe(400);
-      await expect(response.json()).resolves.toMatchObject({ error: "invalid_json" });
+      await expect(response.json()).resolves.toMatchObject({
+        error: "invalid_json",
+      });
       expect(fetchMock).not.toHaveBeenCalled();
     });
   });
@@ -181,7 +202,10 @@ describe("POST /api/lead", () => {
 
       expect(first.status).toBe(200);
       expect(second.status).toBe(200);
-      await expect(second.json()).resolves.toMatchObject({ ok: true, duplicate: true });
+      await expect(second.json()).resolves.toMatchObject({
+        ok: true,
+        duplicate: true,
+      });
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
@@ -195,7 +219,12 @@ describe("POST /api/lead", () => {
 
     it("still sends a different submission id", async () => {
       await POST(request(VALID));
-      await POST(request({ ...VALID, submissionId: "sr-99999999-8888-7777-6666-555555555555" }));
+      await POST(
+        request({
+          ...VALID,
+          submissionId: "sr-99999999-8888-7777-6666-555555555555",
+        }),
+      );
 
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
@@ -227,9 +256,7 @@ describe("POST /api/lead", () => {
     });
 
     it("retries a network error and succeeds on a later attempt", async () => {
-      fetchMock
-        .mockRejectedValueOnce(new Error("socket hang up"))
-        .mockResolvedValueOnce(ok());
+      fetchMock.mockRejectedValueOnce(new Error("socket hang up")).mockResolvedValueOnce(ok());
 
       const response = await postWithRetries(VALID);
 

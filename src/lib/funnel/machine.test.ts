@@ -8,68 +8,71 @@ import {
   funnelReducer,
   nextScreenAfter,
 } from "./machine";
-import { TOTAL_STEPS, progressFor, stepNumber } from "./steps";
+import { STEP_ORDER, TOTAL_STEPS, progressFor, stepNumber } from "./steps";
 
 function run(actions: FunnelAction[], from: FunnelState = INITIAL_STATE): FunnelState {
   return actions.reduce(funnelReducer, from);
 }
 
-/** Answers steps 1-3 down the qualifying path, leaving the contact step current. */
+/** Answers every question down the qualifying path, leaving the contact step current. */
 function qualifyingPath(): FunnelAction[] {
   return [
-    { type: "select", id: "firstHome", value: "yes" },
-    { type: "select", id: "situation", value: "full-time" },
-    { type: "select", id: "income", value: "150k-200k" },
+    { type: "answer", id: "amount", value: 150_000 },
+    { type: "answer", id: "inBusiness", value: "yes" },
+    { type: "answer", id: "industry", value: "Construction" },
+    { type: "answer", id: "purpose", value: "equipment" },
+    { type: "answer", id: "creditScore", value: "good" },
   ];
 }
 
 describe("progression", () => {
-  it("starts on the first home question", () => {
-    expect(currentScreen(INITIAL_STATE)).toBe("firstHome");
-    expect(stepNumber("firstHome")).toBe(1);
+  it("starts on the borrowing amount", () => {
+    expect(currentScreen(INITIAL_STATE)).toBe("amount");
+    expect(stepNumber("amount")).toBe(1);
     expect(canGoBack(INITIAL_STATE)).toBe(false);
   });
 
-  it("has four steps", () => {
-    expect(TOTAL_STEPS).toBe(4);
-    expect(stepNumber("contact")).toBe(4);
+  it("has six steps, ending with the contact details", () => {
+    expect(TOTAL_STEPS).toBe(6);
+    expect(stepNumber("contact")).toBe(6);
   });
 
-  it("walks first home -> situation -> income -> contact", () => {
+  it("walks every question in order", () => {
     let state = INITIAL_STATE;
     const seen = [currentScreen(state)];
     for (const action of qualifyingPath()) {
       state = funnelReducer(state, action);
       seen.push(currentScreen(state));
     }
-    expect(seen).toEqual(["firstHome", "situation", "income", "contact"]);
+    expect(seen).toEqual(STEP_ORDER);
   });
 
-  it("reaches the qualified screen after the contact step", () => {
+  it("reaches the thank you screen after the contact step", () => {
     const state = run([...qualifyingPath(), { type: "complete", firstName: "Sam" }]);
     expect(currentScreen(state)).toBe("qualified");
     expect(stepNumber("qualified")).toBeNull();
   });
 
-  it("keeps only the first name from the contact step", () => {
+  it("keeps the answers and only the first name from the contact step", () => {
     const state = run([...qualifyingPath(), { type: "complete", firstName: "Sam" }]);
-    expect(state.answers.firstName).toBe("Sam");
-    expect(Object.keys(state.answers).sort()).toEqual([
-      "firstHome",
-      "firstName",
-      "income",
-      "situation",
-    ]);
+    expect(state.answers).toEqual({
+      firstName: "Sam",
+      amount: 150_000,
+      inBusiness: "yes",
+      industry: "Construction",
+      purpose: "equipment",
+      creditScore: "good",
+    });
   });
 
   it("keeps answers when stepping back", () => {
     let state = run(qualifyingPath());
     state = funnelReducer(state, { type: "back" });
     state = funnelReducer(state, { type: "back" });
-    expect(currentScreen(state)).toBe("situation");
-    expect(state.answers.firstHome).toBe("yes");
-    expect(state.answers.situation).toBe("full-time");
-    expect(state.answers.income).toBe("150k-200k");
+    expect(currentScreen(state)).toBe("purpose");
+    expect(state.answers.amount).toBe(150_000);
+    expect(state.answers.industry).toBe("Construction");
+    expect(state.answers.creditScore).toBe("good");
   });
 
   it("does nothing when going back from the first step", () => {
@@ -77,70 +80,73 @@ describe("progression", () => {
   });
 });
 
-describe("disqualification", () => {
-  it("ends the flow when they are not buying a first home", () => {
-    const state = funnelReducer(INITIAL_STATE, {
-      type: "select",
-      id: "firstHome",
-      value: "no",
-    });
+describe("conditional logic", () => {
+  it("disqualifies someone who does not run a business", () => {
+    const state = run([
+      { type: "answer", id: "amount", value: 50_000 },
+      { type: "answer", id: "inBusiness", value: "no" },
+    ]);
     expect(currentScreen(state)).toBe("disqualified");
   });
 
-  it("continues when they are", () => {
-    const state = funnelReducer(INITIAL_STATE, {
-      type: "select",
-      id: "firstHome",
-      value: "yes",
-    });
-    expect(currentScreen(state)).toBe("situation");
+  it("disqualifies a bad credit score", () => {
+    const [amount, inBusiness, industry, purpose] = qualifyingPath();
+    const state = run([
+      amount,
+      inBusiness,
+      industry,
+      purpose,
+      { type: "answer", id: "creditScore", value: "bad" },
+    ]);
+    expect(currentScreen(state)).toBe("disqualified");
   });
+
+  it.each(["ok", "good", "great"])("continues to contact on a %s credit score", (value) => {
+    const [amount, inBusiness, industry, purpose] = qualifyingPath();
+    const state = run([
+      amount,
+      inBusiness,
+      industry,
+      purpose,
+      { type: "answer", id: "creditScore", value },
+    ]);
+    expect(currentScreen(state)).toBe("contact");
+  });
+
+  it.each(["working-capital", "equipment", "expansion", "stock", "refinance", "other"])(
+    "carries every loan purpose through: %s",
+    (value) => {
+      const [amount, inBusiness, industry] = qualifyingPath();
+      const state = run([amount, inBusiness, industry, { type: "answer", id: "purpose", value }]);
+      expect(currentScreen(state)).toBe("creditScore");
+    },
+  );
 
   it("rewinds out of the disqualified branch to the question that caused it", () => {
-    let state = funnelReducer(INITIAL_STATE, { type: "select", id: "firstHome", value: "no" });
+    let state = run([
+      { type: "answer", id: "amount", value: 50_000 },
+      { type: "answer", id: "inBusiness", value: "no" },
+    ]);
     state = funnelReducer(state, { type: "back" });
-    expect(currentScreen(state)).toBe("firstHome");
+    expect(currentScreen(state)).toBe("inBusiness");
   });
 
-  it.each(["full-time", "part-time", "self-employed", "government-assistance"])(
-    "carries every situation answer through to income: %s",
-    (value) => {
-      const state = run([
-        { type: "select", id: "firstHome", value: "yes" },
-        { type: "select", id: "situation", value },
-      ]);
-      expect(currentScreen(state)).toBe("income");
-    },
-  );
-
-  it.each(["under-120k", "120k-150k", "150k-200k", "200k-plus"])(
-    "carries every income answer through to contact: %s",
-    (value) => {
-      const state = run([
-        { type: "select", id: "firstHome", value: "yes" },
-        { type: "select", id: "situation", value: "part-time" },
-        { type: "select", id: "income", value },
-      ]);
-      expect(currentScreen(state)).toBe("contact");
-    },
-  );
-
   it("routes each answer to the screen the flow specifies", () => {
-    const answers = { firstName: "", firstHome: "yes" };
-    expect(nextScreenAfter("firstHome", answers)).toBe("situation");
-    expect(nextScreenAfter("situation", answers)).toBe("income");
-    expect(nextScreenAfter("income", answers)).toBe("contact");
+    const answers = { firstName: "", inBusiness: "yes", creditScore: "great" };
+    expect(nextScreenAfter("amount", answers)).toBe("inBusiness");
+    expect(nextScreenAfter("inBusiness", answers)).toBe("industry");
+    expect(nextScreenAfter("industry", answers)).toBe("purpose");
+    expect(nextScreenAfter("purpose", answers)).toBe("creditScore");
+    expect(nextScreenAfter("creditScore", answers)).toBe("contact");
     expect(nextScreenAfter("contact", answers)).toBe("qualified");
-    expect(nextScreenAfter("firstHome", { firstName: "", firstHome: "no" })).toBe("disqualified");
   });
 });
 
 describe("progress track", () => {
-  it("starts empty and fills a quarter per step", () => {
-    expect(progressFor("firstHome")).toBe(0);
-    expect(progressFor("situation")).toBe(0.25);
-    expect(progressFor("income")).toBe(0.5);
-    expect(progressFor("contact")).toBe(0.75);
+  it("starts empty and fills an equal share per step", () => {
+    STEP_ORDER.forEach((step, index) => {
+      expect(progressFor(step)).toBeCloseTo(index / 6);
+    });
   });
 
   it("is full on both terminal screens", () => {

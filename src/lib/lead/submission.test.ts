@@ -10,10 +10,12 @@ const REQUEST: LeadRequest = {
   submissionId: "sr-abcdef01-2345-6789-abcd-ef0123456789",
   name: "Sam Tester",
   email: "Sam@Example.com",
-  mobile: "+61 412 345 678",
-  firstHome: "yes",
-  situation: "government-assistance",
-  income: "under-120k",
+  phone: "+61 412 345 678",
+  amount: 250_000,
+  inBusiness: "yes",
+  industry: "  Hospitality ",
+  purpose: "working-capital",
+  creditScore: "ok",
   pageUrl: "https://stoprent.scalbl.io/",
 };
 
@@ -31,10 +33,11 @@ describe("validateLeadRequest", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("trims the name and keeps the option values", () => {
+  it("trims the free text and keeps the option values", () => {
     const result = validateLeadRequest({ ...REQUEST, name: "  Sam  " });
     expect(result.ok && result.value.name).toBe("Sam");
-    expect(result.ok && result.value.situation).toBe("government-assistance");
+    expect(result.ok && result.value.industry).toBe("Hospitality");
+    expect(result.ok && result.value.purpose).toBe("working-capital");
   });
 
   it("collects every field error at once", () => {
@@ -42,23 +45,27 @@ describe("validateLeadRequest", () => {
       submissionId: "!",
       name: "",
       email: "nope",
-      mobile: "123",
-      firstHome: "maybe",
-      situation: "retired",
-      income: "lots",
+      phone: "123",
+      amount: "lots",
+      inBusiness: "maybe",
+      industry: "   ",
+      purpose: "yacht",
+      creditScore: "amazing",
       pageUrl: "not-a-url",
     });
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(Object.keys(result.errors).sort()).toEqual([
+      "amount",
+      "creditScore",
       "email",
-      "firstHome",
-      "income",
-      "mobile",
+      "inBusiness",
+      "industry",
       "name",
       "pageUrl",
-      "situation",
+      "phone",
+      "purpose",
       "submissionId",
     ]);
   });
@@ -71,17 +78,21 @@ describe("validateLeadRequest", () => {
 
 describe("buildLeadPayload", () => {
   it("maps option values to the labels the spreadsheet shows", () => {
-    const payload = buildLeadPayload(REQUEST, new Date("2026-09-18T04:05:06.000Z"));
+    const validated = validateLeadRequest(REQUEST);
+    if (!validated.ok) throw new Error("expected a valid request");
+    const payload = buildLeadPayload(validated.value, new Date("2026-09-18T04:05:06.000Z"));
 
     expect(payload).toEqual({
       submissionId: REQUEST.submissionId,
       submittedAt: "2026-09-18T04:05:06.000Z",
       name: "Sam Tester",
       email: "sam@example.com",
-      mobile: "0412345678",
-      firstHome: "Yes",
-      situation: "Government Assistance",
-      income: "Under $120k",
+      phone: "0412345678",
+      amount: "$250,000",
+      inBusiness: "Yes",
+      industry: "Hospitality",
+      purpose: "Working capital / cash flow",
+      creditScore: "OK",
       pageUrl: "https://stoprent.scalbl.io/",
       status: "",
       notes: "",
