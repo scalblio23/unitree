@@ -2,15 +2,14 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title:
-    "Stop renting! Victorian first home buyers are accessing new homes with $20k–$90k off and $0 deposit",
+  title: "Need business funding? Get access from $5k - $500k from unique lenders.",
   description:
     "Answer a short survey to see what you could qualify for as a first home buyer in Victoria.",
   robots: { index: false, follow: false },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#eceef0",
+  themeColor: "#0f2a4a",
   width: "device-width",
   initialScale: 1,
 };

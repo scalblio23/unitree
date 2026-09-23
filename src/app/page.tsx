@@ -3,16 +3,22 @@ import { Questionnaire } from "@/components/Questionnaire";
 export default function Page() {
   return (
     <main className="page">
+      <header className="brand-bar">
+        <span className="brand-name">Goal Finance</span>
+      </header>
+
       <div className="column">
+        <p className="eyebrow">Business Funding</p>
+
         <h1 className="headline">
-          Stop renting! Victorian first home buyers are accessing new homes with $20k–$90k off and
-          $0 deposit
+          Need business funding? Get access from{" "}
+          <span className="headline-accent">$5k&nbsp;-&nbsp;$500k</span> from unique lenders.
         </h1>
 
         <p className="terms">T+C&apos;s Apply</p>
 
         <p className="cta">
-          Complete the short survey below to see if you qualify for your first home now.
+          Complete the short quiz now to qualify.
         </p>
 
         <Questionnaire />
